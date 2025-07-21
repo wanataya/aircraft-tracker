@@ -1,50 +1,96 @@
 <template>
   <div class="bg-gray-800 p-4 rounded-lg mb-4">
-    <canvas 
-      ref="mapCanvas" 
-      width="1200" 
-      height="600" 
-      class="w-full border border-gray-600 rounded"
-      @mousemove="onMouseMove"
-      @click="onCanvasClick"
-    ></canvas>
+    <div 
+      ref="mapContainer" 
+      class="w-full h-[600px] border border-gray-600 rounded"
+    ></div>
     <MouseTracker :mouse-coords="mouseCoords" />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue'
+import * as THREE from 'three'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 
 const props = defineProps({
   aircraftList: Array
 })
 
-const emit = defineEmits(['add-aircraft'])
-
-const mapCanvas = ref(null)
+const mapContainer = ref(null)
 const mouseCoords = ref({ lat: 0, lng: 0 })
 
-const { 
-  initializeCanvas, 
-  render, 
-  stopRendering,
-  onMouseMove,
-  onCanvasClick: handleCanvasClick 
-} = useMapRenderer()
+let scene, camera, renderer, controls, animationId
 
-const onCanvasClick = (event) => {
-  const coords = handleCanvasClick(event, mapCanvas.value)
-  emit('add-aircraft', coords)
+const init3DScene = () => {
+  scene = new THREE.Scene()
+
+  const width = mapContainer.value.clientWidth
+  const height = 600
+
+  camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000)
+  camera.position.set(150, 150, 150) // Move camera out of top-down!
+  camera.lookAt(0, 0, 0)
+
+  renderer = new THREE.WebGLRenderer({ antialias: true })
+  renderer.setSize(width, height)
+  mapContainer.value.appendChild(renderer.domElement)
+
+  controls = new OrbitControls(camera, renderer.domElement)
+  controls.enableDamping = true
+
+  // Light
+  const ambient = new THREE.AmbientLight(0xffffff, 0.5)
+  const directional = new THREE.DirectionalLight(0xffffff, 1)
+  directional.position.set(100, 100, 100)
+  scene.add(ambient, directional)
+
+  // Ground
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(500, 500),
+    new THREE.MeshStandardMaterial({ color: 0x444444 })
+  )
+  ground.rotation.x = -Math.PI / 2
+  scene.add(ground)
+
+  animate()
 }
 
-// Watch for aircraft changes and re-render
-watch(() => props.aircraftList, render, { deep: true })
+const renderAircraft = () => {
+  // Remove previous aircraft (except light & ground)
+  for (let i = scene.children.length - 1; i >= 0; i--) {
+    const obj = scene.children[i]
+    if (obj.type === 'Mesh' && obj.geometry.type === 'BoxGeometry') {
+      scene.remove(obj)
+    }
+  }
+
+  props.aircraftList.forEach(ac => {
+    const box = new THREE.Mesh(
+      new THREE.BoxGeometry(5, 2, 2),
+      new THREE.MeshStandardMaterial({ color: 0x00ff00 })
+    )
+    box.position.set(ac.x, ac.altitude, ac.y)
+    scene.add(box)
+  })
+}
+
+const animate = () => {
+  animationId = requestAnimationFrame(animate)
+  controls.update()
+  renderer.render(scene, camera)
+}
 
 onMounted(() => {
-  initializeCanvas(mapCanvas.value)
+  init3DScene()
+  renderAircraft()
 })
 
+watch(() => props.aircraftList, renderAircraft, { deep: true })
+
 onUnmounted(() => {
-  stopRendering()
+  cancelAnimationFrame(animationId)
+  renderer.dispose()
+  mapContainer.value.innerHTML = ''
 })
 </script>

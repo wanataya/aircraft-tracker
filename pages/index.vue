@@ -1,4 +1,5 @@
 <template>
+  <canvas id="your-canvas-id" style="width: 100%; height: 100%;"></canvas>
   <div class="min-h-screen bg-gray-900">
     <div class="container mx-auto p-4">
       <h1 class="text-3xl font-bold text-center mb-6 text-white">
@@ -34,20 +35,7 @@
       </div>
 
       <!-- Map Canvas -->
-      <div class="bg-gray-800 p-4 rounded-lg mb-4">
-        <canvas 
-          ref="mapCanvas" 
-          width="1200" 
-          height="600" 
-          class="w-full border border-gray-600 rounded"
-          @mousemove="onMouseMove"
-          @click="onCanvasClick"
-        ></canvas>
-        <div class="text-xs text-gray-400 mt-2">
-          Mouse: {{ mouseCoords.lat.toFixed(4) }}, {{ mouseCoords.lng.toFixed(4) }} | 
-          Click to add aircraft at cursor position
-        </div>
-      </div>
+      <AircraftMap :aircraft-list="aircraftList" />
 
       <!-- Aircraft List -->
       <div class="bg-gray-800 p-4 rounded-lg">
@@ -87,10 +75,14 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import AircraftMap from '~/components/AircraftMap.vue'
 
 // Reactive data
 const mapCanvas = ref(null)
-const aircraftList = ref([])
+const aircraftList = ref([
+  { x: 10, y: 20, altitude: 30, id: 1 },
+  { x: -40, y: 60, altitude: 50, id: 2 }
+])
 const isTracking = ref(false)
 const lastUpdate = ref('')
 const mouseCoords = ref({ lat: 0, lng: 0 })
@@ -104,6 +96,7 @@ const aircraftTypes = [
   'Boeing 737', 'Airbus A320', 'Boeing 777', 'Airbus A380', 
   'Boeing 787', 'Embraer E190', 'Cessna 172', 'Boeing 747'
 ]
+
 
 const airlines = [
   'Garuda Indonesia', 'Lion Air', 'Sriwijaya Air', 'Citilink',
@@ -345,6 +338,7 @@ const toggleTracking = () => {
   }
 }
 
+
 const addRandomAircraft = () => {
   aircraftList.value.push(generateRandomAircraft())
 }
@@ -386,9 +380,19 @@ const getAircraftStatusColor = (aircraft) => {
 
 // Lifecycle
 onMounted(() => {
-  const canvas = mapCanvas.value
+const canvas = /** @type {HTMLCanvasElement|null} */ (document.getElementById('AircraftMap.vue'))
+  if (!canvas) {
+    console.error('Canvas not found 😵')
+    return
+  }
   ctx = canvas.getContext('2d')
   
+    const gl = canvas.getContext('webgl') // or 'webgl2'
+  if (!gl) {
+    console.error('WebGL not supported 🥲')
+    return
+  }
+
   // Initialize with some sample aircraft
   for (let i = 0; i < 5; i++) {
     aircraftList.value.push(generateRandomAircraft())
