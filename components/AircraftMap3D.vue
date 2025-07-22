@@ -38,7 +38,7 @@ let animationId
 let raycaster, mouse
 
 // Earth parameters
-const EARTH_RADIUS = 100
+const EARTH_RADIUS = 150
 const AIRCRAFT_HEIGHT_SCALE = 0.01 // Scale altitude to be visible
 
 const init3DScene = () => {
@@ -50,7 +50,7 @@ const init3DScene = () => {
   const width = mapContainer.value.clientWidth
   const height = 700
   camera = new THREE.PerspectiveCamera(60, width / height, 1, 10000)
-  camera.position.set(200, 100, 200)
+  camera.position.set(200, 100, 200) // Changed from (200, 100, 200) to zoom closer
   camera.lookAt(0, 0, 0)
 
   // Renderer setup
@@ -120,7 +120,7 @@ const createStarField = () => {
 
 const createEarth = () => {
   // Earth sphere with higher resolution for better texture display
-  const earthGeometry = new THREE.SphereGeometry(EARTH_RADIUS, 128, 64)
+  const earthGeometry = new THREE.SphereGeometry(EARTH_RADIUS, 256, 128)
   
   // Texture loader
   const textureLoader = new THREE.TextureLoader()
@@ -130,6 +130,7 @@ const createEarth = () => {
     'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/land_ocean_ice_cloud_2048.jpg',
     (texture) => {
       console.log('Earth texture loaded successfully')
+      texture.anisotropy = renderer.capabilities.getMaxAnisotropy() // Improve texture quality
     },
     (progress) => {
       console.log('Loading Earth texture...', Math.round(progress.loaded / progress.total * 100) + '%')
@@ -145,7 +146,9 @@ const createEarth = () => {
   // Normal map for surface detail
   const earthNormalMap = textureLoader.load(
     'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/earth_normal_2048.jpg',
-    undefined,
+    (texture) => {
+      texture.anisotropy = renderer.capabilities.getMaxAnisotropy()
+    },
     undefined,
     (error) => {
       console.warn('Normal map failed to load, using without normal mapping')
@@ -155,7 +158,9 @@ const createEarth = () => {
   // Specular map for ocean reflection
   const earthSpecularMap = textureLoader.load(
     'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/earth_specular_2048.jpg',
-    undefined,
+    (texture) => {
+      texture.anisotropy = renderer.capabilities.getMaxAnisotropy()
+    },
     undefined,
     (error) => {
       console.warn('Specular map failed to load, using basic material')
@@ -166,10 +171,10 @@ const createEarth = () => {
   const earthMaterial = new THREE.MeshPhongMaterial({
     map: earthTexture,
     normalMap: earthNormalMap,
-    normalScale: new THREE.Vector2(0.5, 0.5),
+    normalScale: new THREE.Vector2(1.0, 1.0), // Increased from 0.5, 0.5
     specularMap: earthSpecularMap,
-    specular: new THREE.Color(0x222222),
-    shininess: 25
+    specular: new THREE.Color(0x333333), // Slightly more reflective
+    shininess: 50 // Increased shininess
   })
   
   earth = new THREE.Mesh(earthGeometry, earthMaterial)
@@ -236,7 +241,9 @@ const createClouds = () => {
   // Load cloud texture
   const cloudTexture = textureLoader.load(
     'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/earth_clouds_1024.png',
-    undefined,
+    (texture) => {
+      texture.anisotropy = renderer.capabilities.getMaxAnisotropy()
+    },
     undefined,
     (error) => {
       console.warn('Cloud texture failed to load')
@@ -244,8 +251,8 @@ const createClouds = () => {
     }
   )
   
-  // Create clouds geometry slightly larger than Earth
-  const cloudsGeometry = new THREE.SphereGeometry(EARTH_RADIUS + 1, 64, 64)
+  // Create clouds geometry slightly larger than Earth with higher detail
+  const cloudsGeometry = new THREE.SphereGeometry(EARTH_RADIUS + 2, 128, 64) // Increased detail and spacing
   const cloudsMaterial = new THREE.MeshLambertMaterial({
     map: cloudTexture,
     transparent: true,
@@ -262,7 +269,7 @@ const createClouds = () => {
 
 const createAtmosphere = () => {
   // More realistic atmosphere with gradient
-  const atmosphereGeometry = new THREE.SphereGeometry(EARTH_RADIUS + 8, 32, 32)
+  const atmosphereGeometry = new THREE.SphereGeometry(EARTH_RADIUS + 12, 64, 32)
   
   // Create gradient atmosphere shader
   const atmosphereMaterial = new THREE.ShaderMaterial({
@@ -457,7 +464,7 @@ const setupControls = () => {
   
   canvas.addEventListener('wheel', (event) => {
     const distance = camera.position.length()
-    const newDistance = Math.max(150, Math.min(800, distance + event.deltaY * 0.5))
+    const newDistance = Math.max(200, Math.min(1000, distance + event.deltaY * 0.5)) // Adjusted for bigger Earth
     camera.position.normalize().multiplyScalar(newDistance)
   })
 }
